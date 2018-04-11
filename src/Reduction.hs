@@ -27,12 +27,22 @@ redexStep (Lambda var expr) = case redexStep expr of
                                   _         -> Nothing
 
 applyRedex :: Expr -> Expr -> Expr
-applyRedex (Lambda var expr1) expr2 = substitution (renameVars renamings expr1) var expr2
+applyRedex (Lambda var expr1) expr2 = substitution renamedExpr1 var expr2
+  where
+    renamedExpr1 = loopRename var expr1 expr2
+
+loopRename :: Var -> Expr -> Expr -> Expr
+loopRename var expr1 expr2 = if S.null intersection then renamedExpr1 else loopRename var renamedExpr1 expr2
   where
     freeVars = getFreeVars expr2
     boundedVars = getBoundedVars expr1 var
+    intersection = S.intersection freeVars boundedVars
+
     maybesRenamings = evalState (mapM varNewName $ S.toList boundedVars) freeVars
     renamings = M.fromList $ catMaybes maybesRenamings
+    renamedExpr1 = renameVars renamings expr1
+
+
 
 substitution :: Expr -> Var -> Expr -> Expr
 substitution expr@(Var var) free otherExpr = if var == free then otherExpr else expr
